@@ -12,6 +12,22 @@ The pipeline loads multi-modal MRI volumes (FLAIR, T1ce, T2), preprocesses and c
 - **Training/validation:** BraTS 2020 — 75% train / 25% validation
 - **Testing:** BraTS 2021 — evaluated on a held-out subset (batch size 6–8)
 
+## Pipeline
+
+![Data preprocessing and training pipeline](datapreproces.png)
+
+*Input: 3D MRI (T1ce, T2, FLAIR) → preprocessing → 75/25 train/val split → Spatial Attention U-Net training with Dice + Focal loss → segmented mask output.*
+
+```
+Raw NIfTI (BraTS) → get_ready.py → .npy patches (128³)
+                                        ↓
+                              train.py / modtrain.py
+                                        ↓
+                              Saved model (.hdf5)
+                                        ↓
+                                   test.py → IoU + plots
+```
+
 ## Project Structure
 
 ```
@@ -38,6 +54,12 @@ Brain-Tumor-Segmentation/
 | Attention U-Net | `spatial_attenstion_unet/spatial_attension_model.py` | — | — |
 
 The attention variant (`improved_unet_model_with_attention`) adds channel-wise attention blocks to the encoder–decoder path. Wire it into a training script by importing it the same way as the other models.
+
+### Channel Attention Module
+
+![Channel attention module](Images%20Testing/attention%20module.png)
+
+*Average pooling and max pooling are combined, passed through a convolution + softmax, and multiplied back onto the feature maps to produce attended feature maps.*
 
 ## Requirements
 
@@ -109,6 +131,56 @@ python test.py
 
 Loads `modified_brats_3d.hdf5` by default, computes mean IoU on a validation batch, and plots a sample slice (input, ground truth, prediction).
 
+## Training Progress
+
+Training in progress (Spatial Attention U-Net, epoch 1/10):
+
+![Training in progress](Images%20Testing/during_training.png)
+
+Loss and accuracy curves over 100 epochs:
+
+![Training and validation loss and accuracy](Images%20Testing/3rd%20testing.png)
+
+Loss curve at the end of improved U-Net training (epoch 100):
+
+![Improved U-Net training loss](modified_unet/Screenshot%20from%202023-03-24%2007-05-39.png)
+
+Loss curve at the end of spatial attention U-Net training (epoch 100):
+
+![Spatial attention U-Net training loss](spatial_attenstion_unet/Screenshot%20from%202023-03-26%2021-09-24.png)
+
+## Results
+
+### Quantitative Metrics
+
+| Model | Mean IoU | Val Accuracy | Val IoU | Notes |
+|-------|----------|--------------|---------|-------|
+| Baseline 3D U-Net | — | — | — | Trained on BraTS 2020 |
+| Improved 3D U-Net | — | 0.9774 | 0.6675 | 100 epochs, BraTS 2020 |
+| Spatial Attention U-Net | ~0.779 | 0.9818 | 0.6773 | 100 epochs, BraTS 2020 |
+
+![Mean IoU evaluation on test batch](Images%20Testing/testing.png)
+
+### Qualitative Predictions
+
+Side-by-side comparison of input MRI slice, ground-truth label, and model prediction.
+
+**Baseline 3D U-Net:**
+
+![Baseline U-Net prediction](simple_unet/test_normal_unet.png)
+
+**Improved 3D U-Net:**
+
+![Improved U-Net prediction](Images%20Testing/3rd_modified.png)
+
+**Spatial Attention U-Net:**
+
+![Spatial attention U-Net prediction](Images%20Testing/3rd_spatial.png)
+
+**Sample evaluation from `test.py`:**
+
+![Test prediction on BraTS 2020 validation sample](Images%20Testing/test2020.png)
+
 ## Implementation Details
 
 - **Framework:** Python, Keras, TensorFlow
@@ -120,28 +192,6 @@ Loads `modified_brats_3d.hdf5` by default, computes mean IoU on a validation bat
 - **Regularization:** Batch normalization, dropout (0.2–0.5 in improved model)
 - **Training:** 100 epochs, batch size 2
 - **Split:** 75% training / 25% validation on BraTS 2020
-
-## Results
-
-Add your evaluation metrics here after running `test.py`:
-
-| Model | Mean IoU | Notes |
-|-------|----------|-------|
-| Baseline 3D U-Net | — | Trained on BraTS 2020 |
-| Improved 3D U-Net | — | Trained on BraTS 2020 |
-| Attention U-Net | — | — |
-
-## Pipeline
-
-```
-Raw NIfTI (BraTS) → get_ready.py → .npy patches (128³)
-                                        ↓
-                              train.py / modtrain.py
-                                        ↓
-                              Saved model (.hdf5)
-                                        ↓
-                                   test.py → IoU + plots
-```
 
 ## References
 
